@@ -1,0 +1,250 @@
+<?php
+
+/**
+ * @file
+ * The main module file. Contains the basic hooks.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function pirets_menu() {
+  return array(
+    'admin/config/pirets' => array(
+      'title' => 'PIRETS configuration',
+      'page callback' => 'pirets_settings_main',
+      'access arguments' => array('administer pirets'),
+      'description' => 'Settings to help PIRETS connect to the RETS server and parse and store responses.',
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/main' => array(
+      'title' => 'Info',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => 0,
+      'access arguments' => array('administer pirets'),
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/server' => array(
+      'title' => 'Server settings',
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 5,
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pirets_sets_server_form'),
+      'access arguments' => array('administer pirets'),
+      'description' => 'Basic server connection settings.',
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/classes' => array(
+      'title' => 'Property classes',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pirets_sets_classes_form'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 10,
+      'access arguments' => array('administer pirets'),
+      'description' => 'Property class identification.',
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/fields' => array(
+      'title' => 'Field management',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pirets_sets_fmanage_form'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 15,
+      'access arguments' => array('administer pirets'),
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/fields/useful' => array(
+      'title' => 'Field correlation',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => 5,
+      'access arguments' => array('administer pirets'),
+      'description' => 'Correlate useful fields so PIRETS knows what data is stored in them.',
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/fields/all' => array(
+      'title' => 'Useful field selection',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pirets_sets_fields_form'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 0,
+      'access arguments' => array('administer pirets'),
+      'description' => 'Select which RETS fields PIRETS should store data for.',
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/fields/limits' => array(
+      'title' => 'Search limits',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pirets_sets_limits_form'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 10,
+      'access arguments' => array('administer pirets'),
+      'description' => 'Set limits on the properties retrieved from RETS.',
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/update' => array(
+      'title' => 'Listings',
+      'page callback' => 'drupal_get_form',
+      'page arguments' => array('pirets_sets_fupdate_form'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 20,
+      'access arguments' => array('administer pirets'),
+      'file' => 'pirets.admin.inc',
+    ),
+    'admin/config/pirets/update/batch/%' => array(
+      'title' => 'Update class',
+      'page callback' => 'pirets_class_update_batch',
+      'page arguments' => array(5),
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer pirets'),
+      'file' => 'pirets.batch.inc',
+    ),
+    'admin/config/pirets/flush' => array(
+      'title' => 'Delete listings',
+      'page callback' => 'drupal_get_form',
+      'type' => MENU_CALLBACK,
+      'access arguments' => array('administer pirets'),
+      'page arguments' => array('pirets_flush'),
+      'file' => 'pirets.admin.inc',
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_info().
+ */
+function pirets_node_info() {
+  return array(
+    'pirets_prop' => array(
+      'name' => t('PIRETS property'),
+      'base' => 'pirets',
+      'description' => t('A property type that PIRETS manages. You should not create new nodes of this type manually; they are created programmatically.'),
+      'locked' => TRUE,
+    ),
+  );
+}
+
+/**
+ * Implements hook_permission().
+ */
+function pirets_permission() {
+  return array(
+    'administer pirets' => array(
+      'title' => t('administer pirets'),
+      'description' => t('TODO Add a description for \'administer pirets\''),
+    ),
+  );
+}
+
+/**
+ * Implements hook_form().
+ */
+function pirets_form(&$node) {
+  $type = node_type_get_type($node);
+
+  $form = array();
+
+  if ($type->has_title) {
+    $form['title'] = array(
+      '#type' => 'textfield',
+      '#title' => check_plain($type->title_label),
+      '#required' => TRUE,
+      '#default_value' => $node->title,
+      '#weight' => -5,
+    );
+  }
+
+  if ($type->has_body) {
+    $form['body_field'] = node_body_field($node, $type->body_label, $type->min_word_count);
+  }
+  return $form;
+}
+
+/**
+ * Implements hook_theme().
+ */
+function pirets_theme($existing, $type, $theme, $path) {
+  return array(
+    'pirets_classes_form' => array(
+      'render element' => 'form',
+      'file' => 'pirets.admin.inc',
+    ),
+    'pirets_fmanage_form' => array(
+      'render element' => 'form',
+      'file' => 'pirets.admin.inc',
+    ),
+  );
+}
+
+/**
+ * Implements hook_cron().
+ */
+function pirets_cron() {
+  module_load_include('inc', 'pirets', 'pirets.batch');
+  // See if it's time to update any classes
+  $classes = pirets_classes_fetch();
+  foreach ($classes as $key => $class) {
+    if ($class['enabled'] && $class['lifetime'] <= REQUEST_TIME - $class['last_update'] + 120) {
+      // Adding the 120 allows us two minutes of "drift" between cron runs
+      pirets_class_update_batch($key, FALSE);
+    }
+  }
+}
+
+/**
+ * Implements hook_imagecache_actions() (an ImageCache hook)().
+ */
+function pirets_imagecache_actions() {
+  return array(
+    'pirets_fetch' => array(
+      'name' => 'PIRETS fetch',
+      'description' => 'Fetch an image from the RETS server if it does not already exist locally. REQUIRED to display images in PIRETS property listings.',
+      'file' => 'pirets.imagecache.inc',
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_imagecache_default_presets() (an ImageCache hook).
+ */
+/*
+ function pirets_imagecache_default_presets() {
+ return array(
+ 'pirets property' => array(
+ 'presetname' => 'pirets_prop',
+ 'actions' => array(
+ array(
+ 'weight' => 0,
+ 'module' => 'pirets',
+ 'action' => 'pirets_fetch',
+ 'data' => array(),
+ ),
+ array (
+ 'weight' => 10,
+ 'module' => 'imagecache',
+ 'action' => 'imagecache_scale_and_crop',
+ 'data' =>
+ array (
+ 'width' => '320',
+ 'height' => '240',
+ ),
+ ),
+ ),
+ ),
+ );
+ }
+ */
+
+/**
+ * Implements hook_help().
+ */
+function pirets_help($path, $arg) {
+  if ($path === 'admin/config/pirets/classes') {
+    return t('<p>Below is a list of all property classes found in the RETS system. The <em>Visible name</em> value is displayed to users; you may rename them if you wish. The <em>Enabled</em> check box lets you enable or disable particular property classes; PIRETS will not fetch updates for disabled property classes. The <em>Lifetime</em> field lets you specify the minimum number of time that must pass before that property class is updated, so that some classes may be updated more often than others. Note that the <em>Lifetime</em> value specifies a period of time <em>between cron runs;</em> configuring your site to run cron in intervals at least as small as your smallest <em>Lifetime</em> value is recommended. See the <a href="http://drupal.org/cron">Drupal handbook page on configuring cron jobs</a> for more information. Also, be aware that <em>Lifetime</em> intervals are ignored when <a href="!fupdate">force updating</a> listings of a certain class.</p>', array('!fupdate' => url('admin/config/pirets/update')));
+  }
+  elseif ($path === 'admin/config/pirets/fields/all') {
+    return t('<p>This form contains a list of all fields found within the RETS system. It will be quite large. Select the fields for which the PIRETS module should collect and store data. CCK fields will be created for the fields you select, corresponding to the field type.</p><p>Be aware that unchecking a box on this page will cause data stored in the field to be removed from the local database (of course, it will still be in the RETS system), whereas checking a box will cause a field to be created for it, but that field will be empty in property listings until the property is updated again.</p>');
+  }
+  elseif ($path === 'admin/config/pirets/fields') {
+    return t('<p>The fields which have been <a href="!useful">selected as useful</a> are listed on this page. PIRETS will be collecting and storing the data in these RETS fields. However, PIRETS also does some special handling on particular special fields. Please use the <em>Correlation</em> menus below to tell PIRETS which field is which.</p><p>By default, the nodes PIRETS creates will have the MLS number as the title. For more interesting titles, consider installing the <a href="http://drupal.org/project/auto_nodetitle">Automatic Nodetitles</a> module and using it to automatically create titles based on information in the CCK fields PIRETS has created.</p><p>At the least, you must set correlations for <em>MLS ID number</em> and <em>Sale status.</em> If you are connecting to a Rapattoni RETS server, you also need to set a correlation for <em>Price.</em></p>', array('!useful' => url('admin/config/pirets/fields/all')));
+  }
+}

@@ -1,0 +1,273 @@
+<?php
+
+/**
+ * @file
+ * Just your normal .install file.
+ */
+
+/**
+ * Implements hook_install().
+ */
+function pirets_install() {
+  
+  $crc_field = array(
+      'field_name' => 'pirets_crc32',
+      'label' => st('CRC32 hash'),
+      'type' => 'number_integer',
+  );
+  $crc_field_instance = array(
+      'field_name' => 'pirets_crc32',
+      'label' => st('CRC32 hash'),
+      'widget' => array(
+          'type' => 'number',
+      ),
+      'entity_type' => 'node',
+      'bundle' => 'pirets_prop',
+  );
+
+  field_create_field($crc_field);
+  field_create_instance($crc_field_instance);
+
+  $class_field = array(
+      'field_name' => 'pirets_class',
+      'label' => st('Property class'),
+      'type' => 'text',
+  );
+
+  $class_field_instance = array(
+      'field_name' => 'pirets_class',
+      'label' => st('Property class'),
+      'widget' => array(
+          'type' => 'options_select',
+      ),
+      'entity_type' => 'node',
+      'bundle' => 'pirets_prop',
+  );
+
+  field_create_field($class_field);
+  field_create_instance($class_field_instance);
+
+  // Put my weight after CCK
+  $record = array(
+      'name' => 'pirets',
+      'weight' => 20,
+  );
+  drupal_write_record('system', $record, 'name');
+}
+
+/**
+ * Implements hook_enable().
+ */
+function pirets_enable() {
+  // Create the directory for storing PIRETS images
+  $dir_path = file_directory_path() . '/pirets_img';
+  if (!file_exists($dir_path)) {
+    drupal_set_message(t('Creating directory %dir', array('%dir' => $dir_path)));
+    mkdir($dir_path);
+  }
+
+  // Put the blank image (placeholder for RETS images which haven't been fetched
+  // yet) into the files directory and DB table.
+  /*
+    $dest = $dir_path . '/pirets_blank.jpeg';
+    if (file_exists($dest) && !variable_get('pirets_blank_img_fid', FALSE)) {
+    $record = db_fetch_array(db_query('SELECT fid FROM {files} WHERE filename = "pirets_blank.jpeg"'));
+    if ($record) {
+    // Create the array for filefield
+    $file = array(
+    'fid' => intval($record['fid']),
+    'title' => t('PIRETS property image placeholder'),
+    'filename' => $record['filename'],
+    'filepath' => $record['filepath'],
+    'filesize' => $record['filesize'],
+    'mimetype' => $record['filemime'],
+    'description' => '',
+    'list' => TRUE,
+    'data' => array(
+    'alt' => t('PIRETS property image placeholder'),
+    'title' => t('PIRETS property image placeholder'),
+    ),
+    );
+    variable_set('pirets_blank_img', $file);
+    }
+    }
+    if (!variable_get('pirets_blank_img_fid', FALSE)) {
+    // A gimpy fallthrough if we didn't find the file in {files} above
+    $src_path = drupal_get_path('module', 'pirets') . '/img/pirets_blank.jpeg';
+    file_copy($src_path, $dir_path, FILE_EXISTS_REPLACE);
+    $record = array(
+    'filename' => 'pirets_blank.jpeg',
+    'filepath' => $dest,
+    'filemime' => 'image/jpeg',
+    'filesize' => 43,
+    'uid' => 0,
+    'status' => FILE_STATUS_PERMANENT,
+    'timestamp' => time(),
+    );
+    drupal_write_record('files', $record);
+    // Create the array for filefield
+    $file = array(
+    'fid' => intval($record['fid']),
+    'title' => t('PIRETS property image placeholder'),
+    'filename' => $record['filename'],
+    'filepath' => $record['filepath'],
+    'filesize' => $record['filesize'],
+    'mimetype' => $record['filemime'],
+    'description' => '',
+    'list' => TRUE,
+    'data' => array(
+    'alt' => t('PIRETS property image placeholder'),
+    'title' => t('PIRETS property image placeholder'),
+    ),
+    );
+    variable_set('pirets_blank_img', $file);
+    }
+   */
+  drupal_set_message(t('PIRETS enabled. You&rsquo;ll need to <a href="!config">configure PIRETS</a> before the module can do anything useful.', array('!config' => url('admin/config/pirets'))));
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function pirets_uninstall() {
+  global $conf;
+  
+//  $rez = db_query('SELECT system_name FROM {pirets_fields} WHERE cck = :cck', array(':cck' => 1));
+//  if (module_exists('fieldgroup')) {
+//    fieldgroup_delete('pirets_prop', 'group_pirets');
+//  }
+//  while ($sysname = db_fetch_array($rez)) {
+//    content_field_instance_delete('pirets_' . $sysname['system_name'], 'pirets_prop');
+//  }
+  
+  field_delete_field('pirets_crc32');
+  field_delete_field('pirets_class');
+  
+  foreach (array_keys($conf) as $key) {
+    if (strpos($key, 'pirets_') === 0) {
+      variable_del($key);
+    }
+  }
+  cache_clear_all('pirets_', 'cache', TRUE);
+}
+
+/**
+ * Implements hook_schema().
+ */
+function pirets_schema() {
+  return array(
+      'pirets_fields' => array(
+          'description' => 'Defines and associates RETS fields.',
+          'fields' => array(
+              'system_name' => array(
+                  'type' => 'varchar',
+                  'length' => 127,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The SystemName of this field.',
+              ),
+              'cck' => array(
+                  'type' => 'int',
+                  'size' => 'tiny',
+                  'unsigned' => TRUE,
+                  'not null' => TRUE,
+                  'default' => 0,
+                  'description' => 'Whether this is being used as a CCK field.',
+              ),
+              'data_type' => array(
+                  'type' => 'varchar',
+                  'length' => 31,
+                  'not null' => TRUE,
+                  'default' => 'Character',
+                  'description' => 'The DataType value for this field according to RETS.',
+              ),
+              'max_len' => array(
+                  'type' => 'int',
+                  'size' => 'small',
+                  'unsigned' => TRUE,
+                  'not null' => TRUE,
+                  'default' => 0,
+                  'description' => 'The MaximumLength value for this field according to RETS.',
+              ),
+              'prec' => array(
+                  'type' => 'int',
+                  'size' => 'tiny',
+                  'unsigned' => TRUE,
+                  'not null' => TRUE,
+                  'default' => 0,
+                  'description' => 'The Precision value for this field according to RETS.',
+              ),
+              'long_name' => array(
+                  'type' => 'varchar',
+                  'length' => 127,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The LongName of this field.',
+              ),
+              'classes' => array(
+                  'type' => 'varchar',
+                  'length' => 255,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The property classes that use this field.',
+              ),
+              'lookup' => array(
+                  'type' => 'varchar',
+                  'length' => 31,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The {pirets_lookups}.lid for this field.',
+              ),
+              'lup_multi' => array(
+                  'type' => 'int',
+                  'size' => 'tiny',
+                  'unsigned' => TRUE,
+                  'not null' => TRUE,
+                  'default' => 0,
+                  'description' => 'If a lookup field, whether to allow just one selection (0) or multiple selections (1).',
+              ),
+              'correlation' => array(
+                  'type' => 'varchar',
+                  'length' => 15,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The special correlation of this field, if any.',
+              ),
+          ),
+          'primary key' => array('system_name'),
+          'indexes' => array(
+              'cck' => array('cck'),
+          ),
+      ),
+      'pirets_lookups' => array(
+          'description' => 'Values for searchable lookup fields.',
+          'fields' => array(
+              'lid' => array(
+                  'type' => 'varchar',
+                  'length' => 31,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The field lookup ID.',
+              ),
+              'long_value' => array(
+                  'type' => 'varchar',
+                  'length' => 63,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The human-readable name of this value.',
+              ),
+              'value' => array(
+                  'type' => 'varchar',
+                  'length' => 31,
+                  'not null' => TRUE,
+                  'default' => '',
+                  'description' => 'The RETS machine value of this value.',
+              ),
+          ),
+          'indexes' => array(
+              'lid_value' => array('lid', 'value'),
+              'lid' => array('lid'),
+          ),
+      ),
+  );
+}

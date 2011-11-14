@@ -1,0 +1,16 @@
+name = PIRETS
+description = The Precision Intermedia RETS module.
+core = 7.x
+php = 5.2
+dependencies[] = text
+dependencies[] = number
+dependencies[] = options
+dependencies[] = date
+
+files[] = pirets.module
+files[] = pirets.connect.inc
+files[] = pirets.batch.inc
+files[] = pirets.admin.inc
+files[] = pirets.imagecache.inc
+
+configure = admin/config/pirets
